@@ -1,2 +1,20 @@
+# Node
+node_modules/
+dist/
+npm-debug.log
+pnpm-lock.yaml
+yarn.lock
+
+# Env / secrets
 .env
-node_modules
+.env.local
+
+# Data / cache
+data/
+.pnpm-store/
+.pnpm-virtual/
+
+# Editor / OS
+.vscode/
+.DS_Store
+thumbs.db
