@@ -15,13 +15,26 @@ async function main() {
 
   for (const modPath of candidates) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const mod = require(modPath);
+      // Try multiple extensions and surface errors for debugging
+      let mod: any = null;
+      const tryPaths = [modPath, `${modPath}.ts`, `${modPath}.js`];
+      for (const p of tryPaths) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          mod = require(p);
+          console.log(`Loaded module from ${p}`);
+          break;
+        } catch (e) {
+          // Log the require error for diagnosis
+          console.debug(`require failed for ${p}:`, e && e.message ? e.message : e);
+        }
+      }
+      if (!mod) throw new Error(`Could not require any of: ${tryPaths.join(', ')}`);
       AgentClass = mod.Agent || mod.default || mod;
       console.log(`Loaded agent module from ${modPath}`);
       break;
     } catch (err) {
-      // not found, try next
+      console.warn(`Failed to load agent module at ${modPath}:`, err && (err as Error).message ? (err as Error).message : err);
     }
   }
 

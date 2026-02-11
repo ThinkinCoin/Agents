@@ -68,31 +68,28 @@ src/
 
 ## Hierarchy Overview
 
-```
-[PLAN] Agent Smith — Implementation & Deployment          ← PAI (this document)
-├── [PLAN-AgentSmith | SPRINT-001] Core Runtime
-│   ├── [PLAN-AgentSmith | SPRINT-001 | TASK-001] Config module
-│   ├── [PLAN-AgentSmith | SPRINT-001 | TASK-002] LLM integration
-│   ├── [PLAN-AgentSmith | SPRINT-001 | TASK-003] Policy engine
-│   ├── [PLAN-AgentSmith | SPRINT-001 | TASK-004] Brain upgrade (LLM + policy)
-│   └── [PLAN-AgentSmith | SPRINT-001 | TASK-005] Memory layer (SQLite)
-├── [PLAN-AgentSmith | SPRINT-002] Publishing & Actions
-│   ├── [PLAN-AgentSmith | SPRINT-002 | TASK-001] X (Twitter) client
-│   ├── [PLAN-AgentSmith | SPRINT-002 | TASK-002] Action execution layer
-│   └── [PLAN-AgentSmith | SPRINT-002 | TASK-003] Scheduler (cron loop)
-├── [PLAN-AgentSmith | SPRINT-003] Operational Hardening
-│   ├── [PLAN-AgentSmith | SPRINT-003 | TASK-001] Structured logging (pino)
-│   ├── [PLAN-AgentSmith | SPRINT-003 | TASK-002] Context builder
-│   └── [PLAN-AgentSmith | SPRINT-003 | TASK-003] Agent mode control (AGENT_MODE)
-├── [PLAN-AgentSmith | SPRINT-004] CI/CD & Testing
-│   ├── [PLAN-AgentSmith | SPRINT-004 | TASK-001] Unit tests
-│   ├── [PLAN-AgentSmith | SPRINT-004 | TASK-002] GitHub Actions workflow
-│   └── [PLAN-AgentSmith | SPRINT-004 | TASK-003] Docker production build
-└── [PLAN-AgentSmith | SPRINT-005] Advanced Milestones
-    ├── [PLAN-AgentSmith | SPRINT-005 | FEATURE-001] Multi-agent coordination
-    ├── [PLAN-AgentSmith | SPRINT-005 | FEATURE-002] Agent capital alignment
-    └── [PLAN-AgentSmith | SPRINT-005 | FEATURE-003] Delegated autonomy
-```
+- [ ] **[PLAN-AgentSmith | SPRINT-001] Core Runtime** — [SPRINT-001-CoreRuntime.md](SPRINT-001-CoreRuntime.md)
+  - [ ] TASK-001 Config module
+  - [ ] TASK-002 LLM integration
+  - [ ] TASK-003 Policy engine
+  - [ ] TASK-004 Brain upgrade (LLM + policy)
+  - [ ] TASK-005 Memory layer (SQLite)
+- [ ] **[PLAN-AgentSmith | SPRINT-002] Publishing & Actions** — [SPRINT-002-PublishingActions.md](SPRINT-002-PublishingActions.md)
+  - [ ] TASK-001 X (Twitter) client
+  - [ ] TASK-002 Action execution layer
+  - [ ] TASK-003 Scheduler (cron loop)
+- [ ] **[PLAN-AgentSmith | SPRINT-003] Operational Hardening** — [SPRINT-003-Hardening.md](SPRINT-003-Hardening.md)
+  - [ ] TASK-001 Structured logging (pino)
+  - [ ] TASK-002 Context builder
+  - [ ] TASK-003 Agent mode control (AGENT_MODE)
+- [ ] **[PLAN-AgentSmith | SPRINT-004] CI/CD & Testing** — [SPRINT-004-CICD.md](SPRINT-004-CICD.md)
+  - [ ] TASK-001 Unit tests
+  - [ ] TASK-002 GitHub Actions workflow
+  - [ ] TASK-003 Docker production build
+- [ ] **[PLAN-AgentSmith | SPRINT-005] Advanced Milestones** — [SPRINT-005-AdvancedMilestones.md](SPRINT-005-AdvancedMilestones.md)
+  - [ ] FEATURE-001 Multi-agent coordination
+  - [ ] FEATURE-002 Agent capital alignment
+  - [ ] FEATURE-003 Delegated autonomy
 
 ---
 

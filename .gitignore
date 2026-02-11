@@ -13,7 +13,7 @@ yarn.lock
 data/
 .pnpm-store/
 .pnpm-virtual/
-
+docs/plans/*
 # Editor / OS
 .vscode/
 .DS_Store

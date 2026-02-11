@@ -1,0 +1,2 @@
+2026-02-10T21:33:53.182Z ESCALATION: llm-error {"checks":[],"text":"LLM error: unable to generate candidate. Escalate for human review.","rationale":"llm-error"}
+2026-02-10T21:45:13.016Z ESCALATION: llm-error {"checks":[],"text":"LLM error: unable to generate candidate. Escalate for human review.","rationale":"llm-error"}
