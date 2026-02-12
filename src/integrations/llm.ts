@@ -45,13 +45,19 @@ export class LLMClient {
       ];
 
       // Use chat completions
-      // The OpenAI client API shape may vary; use a common interface
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resp: any = await this.client.chat.completions.create({
+      // For newer models (o1, gpt-5), max_tokens is replaced by max_completion_tokens
+      const payload: any = {
         model: config.OPENAI_MODEL,
-        messages,
-        max_tokens: 512
-      });
+        messages
+      };
+
+      if (config.OPENAI_MODEL.includes('o1') || config.OPENAI_MODEL.includes('gpt-5')) {
+        payload.max_completion_tokens = 512;
+      } else {
+        payload.max_tokens = 512;
+      }
+
+      const resp: any = await this.client.chat.completions.create(payload);
 
       const content = resp?.choices?.[0]?.message?.content || '';
 

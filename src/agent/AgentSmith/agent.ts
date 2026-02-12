@@ -8,9 +8,28 @@ import config from '../../config';
 
 export class Agent {
   private brain: Brain;
+  private nextHeartbeat: Date | null = null;
 
   constructor() {
     this.brain = new Brain();
+  }
+
+  private updateRuntimeState() {
+    try {
+      const statePath = path.resolve(config.OPENCLAW_DIR, 'agentSmith', 'runtime-state.json');
+      const dir = path.dirname(statePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+      const state = {
+        last_check: new Date().toISOString(),
+        next_heartbeat: this.nextHeartbeat ? this.nextHeartbeat.toISOString() : null,
+        heartbeat_interval_ms: config.HEARTBEAT_MS,
+        agent_mode: config.AGENT_MODE
+      };
+      fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+    } catch (e) {
+      console.warn('Failed to update runtime state:', e);
+    }
   }
 
   async start() {
@@ -19,6 +38,12 @@ export class Agent {
     const executor = new Executor();
 
     const runOnce = async () => {
+      // Update next heartbeat estimate
+      if (config.HEARTBEAT_MS > 0) {
+        this.nextHeartbeat = new Date(Date.now() + config.HEARTBEAT_MS);
+      }
+      this.updateRuntimeState();
+
       // Check DAO pause flag before doing anything
       if (governance.isDAOPaused()) {
         console.log('DAO_PAUSE is active — skipping this heartbeat.');
@@ -67,8 +92,14 @@ export class Agent {
     // Ping handler: send SIGUSR2 to process to get a PONG and append to transparency.log
     process.on('SIGUSR2', () => {
       const agentName = process.env.AGENT_NAME || 'AgentSmith';
-      const msg = `${new Date().toISOString()} PONG from ${agentName}\n`;
-      console.log('Received SIGUSR2 — PONG');
+      let hbInfo = '';
+      if (this.nextHeartbeat) {
+        const remainingMs = this.nextHeartbeat.getTime() - Date.now();
+        const remainingMin = Math.round(remainingMs / 60000);
+        hbInfo = ` | Next heartbeat in ~${remainingMin} min (${this.nextHeartbeat.toISOString()})`;
+      }
+      const msg = `${new Date().toISOString()} PONG from ${agentName}${hbInfo}\n`;
+      console.log('Received SIGUSR2 — PONG', hbInfo);
       try {
         const logPath = path.resolve(process.cwd(), 'transparency.log');
         fs.appendFileSync(logPath, msg);

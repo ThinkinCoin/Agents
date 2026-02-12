@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import config from '../../config';
+import { TwitterApi } from 'twitter-api-v2';
 
 function readJSON(p: string) {
   try {
@@ -85,9 +86,20 @@ export class Executor {
   }
 
   private async postJson(url: string, body: any, apiKey: string) {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify(body) });
-    const text = await res.text();
-    try { return { status: res.status, body: JSON.parse(text) } } catch(e){ return { status: res.status, body: text }; }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const res = await fetch(url, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, 
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      const text = await res.text();
+      try { return { status: res.status, body: JSON.parse(text) } } catch(e){ return { status: res.status, body: text }; }
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private async solveAndSubmit(verification: any, apiKey: string) {
@@ -109,6 +121,35 @@ export class Executor {
     return resp;
   }
 
+  private async postToTwitter(text: string) {
+    console.log('Attempting Twitter post...');
+    if (!config.X_API_KEY || !config.X_API_SECRET || !config.X_ACCESS_TOKEN || !config.X_ACCESS_SECRET) {
+      console.log('Twitter creds missing');
+      return { success: false, error: 'Twitter/X credentials missing in environment' };
+    }
+
+    try {
+      console.log('Initializing Twitter client...');
+      const client = new TwitterApi({
+        appKey: config.X_API_KEY,
+        appSecret: config.X_API_SECRET,
+        accessToken: config.X_ACCESS_TOKEN,
+        accessSecret: config.X_ACCESS_SECRET,
+      });
+
+      console.log('Sending tweet to X (with 15s timeout)...');
+      const tweet = await Promise.race([
+        client.v2.tweet(text),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Twitter API Timeout')), 15000))
+      ]) as any;
+      console.log('X tweet success:', tweet.data.id);
+      return { success: true, tweet_id: tweet.data.id };
+    } catch (e) {
+      console.error('Twitter post error:', e);
+      return { success: false, error: String(e) };
+    }
+  }
+
   public async publish(candidate: any) {
     const state = this.readState();
     if (state.next_post_after && Date.now() < Number(state.next_post_after)) {
@@ -122,18 +163,25 @@ export class Executor {
     const body = { submolt: 'core', title, content: candidate.text };
 
     const res = await this.postJson('https://www.moltbook.com/api/v1/posts', body, apiKey);
+
+    // Attempt Twitter post if enabled
+    let xResult: any = null;
+    if (config.X_API_KEY && config.X_API_SECRET && config.X_ACCESS_TOKEN && config.X_ACCESS_SECRET) {
+      xResult = await this.postToTwitter(candidate.text);
+    }
+
     if (res.body && res.body.verification_required) {
       // attempt to solve
       try {
         const vr = await this.solveAndSubmit(res.body.verification, apiKey);
-        return { posted: false, verification: res.body.verification, verify_response: vr };
+        return { posted: false, twitter: xResult, verification: res.body.verification, verify_response: vr };
       } catch (e) {
-        return { posted: false, error: e };
+        return { posted: false, twitter: xResult, error: e };
       }
     }
 
     if (res.status === 201 || (res.body && res.body.success)) {
-      return { posted: true, post: res.body.post || res.body };
+      return { posted: true, twitter: xResult, post: res.body.post || res.body };
     }
 
     // handle rate limit
