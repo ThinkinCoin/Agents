@@ -2,6 +2,7 @@ import { Brain } from './brain';
 import fs from 'fs';
 import path from 'path';
 import { Executor } from './executor';
+import Scout from './scout';
 import memory from './memory';
 import governance from './governance';
 import config from '../../config';
@@ -36,6 +37,7 @@ export class Agent {
     console.log('Agent Smith starting (local dev mode)');
     console.log('OpenClaw directory:', config.OPENCLAW_DIR);
     const executor = new Executor();
+    const scout = new Scout();
 
     const runOnce = async () => {
       // Update next heartbeat estimate
@@ -49,7 +51,47 @@ export class Agent {
         console.log('DAO_PAUSE is active — skipping this heartbeat.');
         return;
       }
+
       try {
+        // 1) Collect and respond to mentions first
+        const mentions = await scout.collectNewMentions(executor);
+        for (const mention of mentions) {
+          try {
+            const replyCandidate = await this.brain.proposeReply({
+              mentionId: mention.id,
+              mentionText: mention.text,
+              authorId: mention.author_id
+            });
+
+            if (replyCandidate && !replyCandidate.requires_human_approval) {
+              const replyResult = await executor.replyToTwitter(mention.id, replyCandidate.text || 'Thanks for the mention.');
+              memory.recordAction({
+                timestamp: new Date().toISOString(),
+                type: 'reply',
+                text: replyCandidate.text || '',
+                rationale: replyCandidate.rationale || '',
+                policy_result: replyResult.success ? 'ok' : 'error',
+                published: replyResult.success ? 1 : 0
+              });
+              if (replyResult.success) {
+                scout.markReplied(mention.id);
+              }
+              console.log('Reply result:', { mention_id: mention.id, ...replyResult });
+            }
+          } catch (e) {
+            console.error('Reply pipeline error:', e);
+            memory.recordAction({
+              timestamp: new Date().toISOString(),
+              type: 'reply_error',
+              text: mention.text,
+              rationale: String(e),
+              policy_result: 'error',
+              published: 0
+            });
+          }
+        }
+
+        // 2) Then continue normal publication flow
         const candidate = await this.brain.propose();
         console.log('Candidate action (dev):', candidate);
 

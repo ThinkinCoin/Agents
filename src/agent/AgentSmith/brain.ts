@@ -119,5 +119,74 @@ export class Brain {
       requires_human_approval: false 
     };
   }
+
+  async proposeReply(input: { mentionId: string; mentionText: string; authorId?: string }) {
+    const baseContext = this.buildContext();
+    const replyContext = [
+      baseContext,
+      'Task: reply to a user mention on X (Twitter).',
+      `Mention ID: ${input.mentionId}`,
+      input.authorId ? `Author ID: ${input.authorId}` : '',
+      `Mention text: ${input.mentionText}`,
+      'Constraints: concise, helpful, safe, and on-topic. Return plain text suitable for a single reply tweet.'
+    ].filter(Boolean).join('\n\n');
+
+    if (config.DISABLE_LLM) {
+      return {
+        text: `Thanks for the message! (ref ${input.mentionId.slice(0, 6)})`,
+        rationale: 'dev-run: reply pipeline validation',
+        policy_checks: ['mock'],
+        requires_human_approval: false
+      };
+    }
+
+    const candidate = await llm.generateCandidate(replyContext);
+    const replyText = (candidate.text || '').trim();
+
+    const violations = governance.checkForbiddenKeywords(replyText);
+    const rateOk = governance.checkRateLimit('reply');
+
+    const policyChecks: string[] = [];
+    if (violations.length) policyChecks.push(`forbidden:${violations.join(',')}`);
+    if (!rateOk) policyChecks.push('reply_rate_limit_exceeded');
+
+    const requiresApproval = candidate.requires_human_approval || policyChecks.length > 0;
+    const policyResult = policyChecks.length === 0 ? 'ok' : 'failed';
+
+    memory.recordAction({
+      timestamp: new Date().toISOString(),
+      type: 'reply_proposal',
+      text: replyText,
+      rationale: candidate.rationale || '',
+      policy_result: policyResult,
+      published: 0
+    });
+
+    if (requiresApproval) {
+      const reason = candidate.requires_human_approval ? (candidate.rationale || 'llm-requirement') : 'policy_violation';
+      governance.enforceEscalation(reason, {
+        checks: policyChecks,
+        mention_id: input.mentionId,
+        text: replyText,
+        rationale: candidate.rationale
+      });
+
+      return {
+        ...candidate,
+        text: replyText,
+        rationale: candidate.rationale || '',
+        policy_checks: policyChecks.length > 0 ? policyChecks : (candidate.policy_checks || ['manual_review_required']),
+        requires_human_approval: true
+      };
+    }
+
+    return {
+      ...candidate,
+      text: replyText,
+      rationale: candidate.rationale || '',
+      policy_checks: ['passed'],
+      requires_human_approval: false
+    };
+  }
 }
 

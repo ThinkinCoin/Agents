@@ -15,6 +15,7 @@ export interface Config {
   PROJECT?: string;
   TOKEN?: string;
   HEARTBEAT_MS: number;
+  REPLY_WINDOW_HOURS: number;
   DISABLE_HEARTBEAT: boolean;
   OPENCLAW_DIR: string;
   AGENT_MODE: AgentMode;
@@ -33,14 +34,15 @@ const env = process.env;
 export const config: Config = {
   OPENAI_API_KEY: env.OPENAI_API_KEY,
   OPENAI_MODEL: env.OPENAI_MODEL || 'gpt-5-mini',
-  X_API_KEY: env.X_API_KEY,
-  X_API_SECRET: env.X_API_SECRET,
-  X_ACCESS_TOKEN: env.X_ACCESS_TOKEN,
-  X_ACCESS_SECRET: env.X_ACCESS_SECRET,
+  X_API_KEY: env.X_API_KEY?.trim(),
+  X_API_SECRET: env.X_API_SECRET?.trim(),
+  X_ACCESS_TOKEN: env.X_ACCESS_TOKEN?.trim(),
+  X_ACCESS_SECRET: env.X_ACCESS_SECRET?.trim(),
   AGENT_NAME: env.AGENT_NAME || 'AgentSmith',
   PROJECT: env.PROJECT || 'Think in Coin',
   TOKEN: env.TOKEN || 'NEURONS',
   HEARTBEAT_MS: parseNumber(env.HEARTBEAT_MS, 3 * 60 * 60 * 1000),
+  REPLY_WINDOW_HOURS: parseNumber(env.REPLY_WINDOW_HOURS, 24),
   DISABLE_HEARTBEAT: env.DISABLE_HEARTBEAT === '1',
   OPENCLAW_DIR: env.OPENCLAW_DIR || path.resolve(os.homedir(), '.openclaw'),
   AGENT_MODE: (env.AGENT_MODE as AgentMode) || 'observe_only',

@@ -3,6 +3,14 @@ import path from 'path';
 import config from '../../config';
 import { TwitterApi } from 'twitter-api-v2';
 
+export type TwitterMention = {
+  id: string;
+  text: string;
+  author_id?: string;
+  conversation_id?: string;
+  created_at?: string;
+};
+
 function readJSON(p: string) {
   try {
     return JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -57,6 +65,19 @@ export class Executor {
   constructor() {
     this.credPath = path.resolve(process.cwd(), '.agents/moltbook/agentSmith/credentials.json');
     this.statePath = path.resolve(config.OPENCLAW_DIR || path.resolve(process.cwd(), 'data'), 'moltbook', 'runtime-state.json');
+  }
+
+  private getTwitterClient(): TwitterApi | null {
+    if (!config.X_API_KEY || !config.X_API_SECRET || !config.X_ACCESS_TOKEN || !config.X_ACCESS_SECRET) {
+      return null;
+    }
+
+    return new TwitterApi({
+      appKey: config.X_API_KEY,
+      appSecret: config.X_API_SECRET,
+      accessToken: config.X_ACCESS_TOKEN,
+      accessSecret: config.X_ACCESS_SECRET,
+    });
   }
 
   private readState(): any {
@@ -123,20 +144,13 @@ export class Executor {
 
   private async postToTwitter(text: string) {
     console.log('Attempting Twitter post...');
-    if (!config.X_API_KEY || !config.X_API_SECRET || !config.X_ACCESS_TOKEN || !config.X_ACCESS_SECRET) {
+    const client = this.getTwitterClient();
+    if (!client) {
       console.log('Twitter creds missing');
       return { success: false, error: 'Twitter/X credentials missing in environment' };
     }
 
     try {
-      console.log('Initializing Twitter client...');
-      const client = new TwitterApi({
-        appKey: config.X_API_KEY,
-        appSecret: config.X_API_SECRET,
-        accessToken: config.X_ACCESS_TOKEN,
-        accessSecret: config.X_ACCESS_SECRET,
-      });
-
       console.log('Sending tweet to X (with 15s timeout)...');
       const tweet = await Promise.race([
         client.v2.tweet(text),
@@ -146,6 +160,53 @@ export class Executor {
       return { success: true, tweet_id: tweet.data.id };
     } catch (e) {
       console.error('Twitter post error:', e);
+      return { success: false, error: String(e) };
+    }
+  }
+
+  public async fetchTwitterMentions(sinceId?: string, limit = 5): Promise<{ mentions: TwitterMention[]; newestId?: string; error?: string }> {
+    const client = this.getTwitterClient();
+    if (!client) {
+      return { mentions: [], error: 'Twitter/X credentials missing in environment' };
+    }
+
+    try {
+      const me = await client.v2.me();
+      const timeline = await client.v2.userMentionTimeline(me.data.id, {
+        since_id: sinceId,
+        max_results: Math.max(5, Math.min(limit, 100)),
+        'tweet.fields': ['author_id', 'conversation_id', 'created_at']
+      } as any);
+
+      const rows = (timeline?.data?.data || []) as any[];
+      const mentions: TwitterMention[] = rows.map((row) => ({
+        id: row.id,
+        text: row.text || '',
+        author_id: row.author_id,
+        conversation_id: row.conversation_id,
+        created_at: row.created_at
+      }));
+
+      const newestId = mentions.length > 0 ? mentions[0].id : sinceId;
+      return { mentions, newestId };
+    } catch (e) {
+      return { mentions: [], error: String(e) };
+    }
+  }
+
+  public async replyToTwitter(tweetId: string, text: string): Promise<{ success: boolean; reply_id?: string; error?: string }> {
+    const client = this.getTwitterClient();
+    if (!client) {
+      return { success: false, error: 'Twitter/X credentials missing in environment' };
+    }
+
+    try {
+      const reply = await Promise.race([
+        client.v2.tweet(text, { reply: { in_reply_to_tweet_id: tweetId } }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Twitter API Timeout')), 15000))
+      ]) as any;
+      return { success: true, reply_id: reply?.data?.id };
+    } catch (e) {
       return { success: false, error: String(e) };
     }
   }
