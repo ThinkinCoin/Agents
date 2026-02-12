@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import memory, { ActionRecord } from './memory';
+import config from '../../config';
 
 type Policy = {
   forbid_keywords?: string[];
@@ -13,6 +14,8 @@ type Policy = {
 };
 
 const POLICY_LOCATIONS = [
+  // user-specific OpenClaw directory takes precedence
+  path.resolve(config.OPENCLAW_DIR, 'policy.yaml'),
   path.resolve(process.cwd(), '.agents', process.env.AGENT_NAME || 'AgentSmith', 'policy.yaml'),
   path.resolve(process.cwd(), 'policy.yaml')
 ];

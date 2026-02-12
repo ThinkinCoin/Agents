@@ -8,13 +8,53 @@ import config from '../../config';
 export class Brain {
   constructor() {}
 
+  private readOpenClawFile(...segments: string[]): string {
+    try {
+      const p = path.resolve(config.OPENCLAW_DIR, ...segments);
+      if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
+    } catch (e) {
+      // ignore
+    }
+    return '';
+  }
+
+  private buildOpenClawContext(): string {
+    const candidates = [
+      ['agentSmith'],
+      ['workspace']
+    ];
+
+    for (const base of candidates) {
+      const identity = this.readOpenClawFile(...base, 'IDENTITY.md');
+      const soul = this.readOpenClawFile(...base, 'SOUL.md');
+      const tools = this.readOpenClawFile(...base, 'TOOLS.md');
+      const heartbeat = this.readOpenClawFile(...base, 'HEARTBEAT.md');
+      const user = this.readOpenClawFile(...base, 'USER.md');
+
+      const chunks = [identity, soul, tools, heartbeat, user].filter(Boolean);
+      if (chunks.length > 0) {
+        return chunks.join('\n\n');
+      }
+    }
+
+    return '';
+  }
+
   private buildContext(): string {
     const agent = config.AGENT_NAME;
     const recent = memory.getRecentActions(5) || [];
     const recentText = recent.map((r: any) => `- ${r.timestamp}: ${r.type} — ${r.rationale || r.text}`).join('\n');
     const policySummary = `forbidden_keywords=${(governance.policy.forbid_keywords || []).length}, posts_per_day=${governance.policy.rate_limit?.posts_per_day || 'unset'}`;
+    const openclawText = this.buildOpenClawContext();
     const header = `Agent: ${agent}\nProject: ${config.PROJECT}\nToken: ${config.TOKEN}\n`;
-    const ctx = [header, 'Recent actions:', recentText, 'Policy summary:', policySummary].join('\n\n');
+    const ctx = [
+      header,
+      openclawText ? 'OpenClaw directives:\n' + openclawText : '',
+      'Recent actions:',
+      recentText,
+      'Policy summary:',
+      policySummary
+    ].filter(Boolean).join('\n\n');
     return ctx;
   }
 

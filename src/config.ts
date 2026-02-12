@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 export type AgentMode = 'observe_only' | 'supervised' | 'limited' | 'dao_governed';
 
@@ -15,6 +16,7 @@ export interface Config {
   TOKEN?: string;
   HEARTBEAT_MS: number;
   DISABLE_HEARTBEAT: boolean;
+  OPENCLAW_DIR: string;
   AGENT_MODE: AgentMode;
   LOG_LEVEL: string;
   DISABLE_LLM: boolean;
@@ -40,10 +42,25 @@ export const config: Config = {
   TOKEN: env.TOKEN || 'NEURONS',
   HEARTBEAT_MS: parseNumber(env.HEARTBEAT_MS, 3 * 60 * 60 * 1000),
   DISABLE_HEARTBEAT: env.DISABLE_HEARTBEAT === '1',
+  OPENCLAW_DIR: env.OPENCLAW_DIR || path.resolve(os.homedir(), '.openclaw'),
   AGENT_MODE: (env.AGENT_MODE as AgentMode) || 'observe_only',
   LOG_LEVEL: env.LOG_LEVEL || 'info',
   DISABLE_LLM: env.DISABLE_LLM === '1'
 };
+
+// If an OPENCLAW directory exists, try to load heartbeat override from heartbeat.json
+try {
+  const hbPath = path.resolve(config.OPENCLAW_DIR, 'heartbeat.json');
+  if (fs.existsSync(hbPath)) {
+    const raw = fs.readFileSync(hbPath, 'utf8');
+    const jb = JSON.parse(raw);
+    if (jb && typeof jb.heartbeat_ms === 'number') {
+      (config as any).HEARTBEAT_MS = jb.heartbeat_ms;
+    }
+  }
+} catch (e) {
+  // ignore
+}
 
 // Basic validation
 if (process.env.NODE_ENV === 'production') {

@@ -1,6 +1,10 @@
 import { Brain } from './brain';
 import fs from 'fs';
 import path from 'path';
+import { Executor } from './executor';
+import memory from './memory';
+import governance from './governance';
+import config from '../../config';
 
 export class Agent {
   private brain: Brain;
@@ -11,11 +15,30 @@ export class Agent {
 
   async start() {
     console.log('Agent Smith starting (local dev mode)');
+    console.log('OpenClaw directory:', config.OPENCLAW_DIR);
+    const executor = new Executor();
 
     const runOnce = async () => {
+      // Check DAO pause flag before doing anything
+      if (governance.isDAOPaused()) {
+        console.log('DAO_PAUSE is active — skipping this heartbeat.');
+        return;
+      }
       try {
         const candidate = await this.brain.propose();
         console.log('Candidate action (dev):', candidate);
+
+        // If candidate is allowed to run automatically, attempt to publish
+        if (candidate && !((candidate as any).requires_human_approval === true)) {
+          try {
+            const result = await executor.publish(candidate);
+            memory.recordAction({ timestamp: new Date().toISOString(), type: 'publish_attempt', text: candidate.text, rationale: candidate.rationale || '', policy_result: 'auto', published: result.posted ? 1 : 0 });
+            console.log('Publish result:', result);
+          } catch (e) {
+            console.error('Publish error:', e);
+            memory.recordAction({ timestamp: new Date().toISOString(), type: 'publish_error', text: candidate.text, rationale: String(e), policy_result: 'error', published: 0 });
+          }
+        }
       } catch (err) {
         console.error('Error in agent loop:', err);
       }
@@ -24,9 +47,8 @@ export class Agent {
     // Run immediately, then schedule heartbeat (can be disabled in dev)
     await runOnce();
 
-    const defaultMs = 3 * 60 * 60 * 1000; // 3 hours
-    const intervalMs = process.env.HEARTBEAT_MS ? parseInt(process.env.HEARTBEAT_MS, 10) : defaultMs;
-    const disable = process.env.DISABLE_HEARTBEAT === '1' || intervalMs <= 0;
+    const intervalMs = config.HEARTBEAT_MS;
+    const disable = config.DISABLE_HEARTBEAT || intervalMs <= 0;
 
     let timer: NodeJS.Timeout | null = null;
     if (disable) {

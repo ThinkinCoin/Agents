@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import config from '../config';
 import { OpenAI } from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions/completions';
 
 export type Candidate = {
   text: string;
@@ -38,7 +39,7 @@ export class LLMClient {
     }
 
     try {
-      const messages = [
+      const messages: ChatCompletionMessageParam[] = [
         { role: 'system', content: this.systemPrompt || 'You are Agent Smith.' },
         { role: 'user', content: context }
       ];

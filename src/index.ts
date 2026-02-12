@@ -26,7 +26,8 @@ async function main() {
           break;
         } catch (e) {
           // Log the require error for diagnosis
-          console.debug(`require failed for ${p}:`, e && e.message ? e.message : e);
+          const err = e as Error;
+          console.debug(`require failed for ${p}:`, err?.message || e);
         }
       }
       if (!mod) throw new Error(`Could not require any of: ${tryPaths.join(', ')}`);
