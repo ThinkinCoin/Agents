@@ -8,6 +8,8 @@ yarn.lock
 # Env / secrets
 .env
 .env.local
+**/credentials.json
+**/moltbook/**/credentials.json
 
 # Data / cache
 data/
