@@ -1,13 +1,14 @@
 import path from 'path';
 import fs from 'fs';
 
-const DB_PATH = path.resolve(process.cwd(), 'data', 'agent-smith.db');
-const DB_DIR = path.dirname(DB_PATH);
+// File-backed NDJSON store (pure JS, no native modules)
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const ACTIONS_FILE = path.resolve(DATA_DIR, 'agent-smith.actions.ndjson');
+const AUDIT_FILE = path.resolve(DATA_DIR, 'agent-smith.audit.ndjson');
 
-if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 export type ActionRecord = {
-  id?: number;
   timestamp: string;
   type: string;
   text: string;
@@ -16,91 +17,69 @@ export type ActionRecord = {
   published?: number;
 };
 
-/**
- * Memory layer: attempts to use better-sqlite3; if unavailable, falls back to in-memory store.
- */
 export class Memory {
-  private db: any | null = null;
-  private inMemoryActions: ActionRecord[] = [];
-  private inMemoryAudit: { timestamp: string; event: string; metadata: string }[] = [];
+  // In-memory cache to reduce fs reads for small datasets
+  private cacheActions: ActionRecord[] | null = null;
 
-  constructor(dbPath = DB_PATH) {
-    try {
-      // Dynamically require to avoid early crash when native module missing
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const Database = require('better-sqlite3');
-      this.db = new Database(dbPath);
-      this.db.pragma('journal_mode = WAL');
-      this.migrate();
-    } catch (e) {
-      // Fallback to in-memory store
-      //console.warn('better-sqlite3 not available, using in-memory fallback:', e && e.message ? e.message : e);
-      this.db = null;
-    }
+  private ensureFiles() {
+    if (!fs.existsSync(ACTIONS_FILE)) fs.writeFileSync(ACTIONS_FILE, '');
+    if (!fs.existsSync(AUDIT_FILE)) fs.writeFileSync(AUDIT_FILE, '');
   }
 
-  private migrate() {
-    if (!this.db) return;
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS actions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        type TEXT,
-        text TEXT,
-        rationale TEXT,
-        policy_result TEXT,
-        published INTEGER DEFAULT 0
-      );
-
-      CREATE TABLE IF NOT EXISTS context_snapshots (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        content TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS audit_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        event TEXT,
-        metadata TEXT
-      );
-    `);
+  constructor() {
+    this.ensureFiles();
   }
 
   recordAction(action: ActionRecord) {
-    if (this.db) {
-      const stmt = this.db.prepare(`INSERT INTO actions (timestamp, type, text, rationale, policy_result, published) VALUES (?, ?, ?, ?, ?, ?)`);
-      stmt.run(action.timestamp, action.type, action.text, action.rationale || null, action.policy_result || null, action.published ? 1 : 0);
-      return;
+    this.ensureFiles();
+    const line = JSON.stringify(action) + '\n';
+    try {
+      fs.appendFileSync(ACTIONS_FILE, line, 'utf8');
+      this.cacheActions = null; // invalidate cache
+    } catch (e) {
+      // best-effort: if append fails, keep in-memory
+      if (!this.cacheActions) this.cacheActions = [];
+      this.cacheActions.push(action);
     }
-    this.inMemoryActions.push(action);
+  }
+
+  private readAllActions(): ActionRecord[] {
+    this.ensureFiles();
+    if (this.cacheActions) return this.cacheActions;
+    try {
+      const raw = fs.readFileSync(ACTIONS_FILE, 'utf8').trim();
+      if (!raw) return (this.cacheActions = []);
+      const lines = raw.split(/\r?\n/).filter(Boolean);
+      const items = lines.map((l) => {
+        try { return JSON.parse(l); } catch { return null; }
+      }).filter(Boolean) as ActionRecord[];
+      this.cacheActions = items;
+      return items;
+    } catch (e) {
+      return [];
+    }
   }
 
   getRecentActions(n = 10) {
-    if (this.db) {
-      const stmt = this.db.prepare(`SELECT * FROM actions ORDER BY id DESC LIMIT ?`);
-      return stmt.all(n);
-    }
-    return this.inMemoryActions.slice(-n).reverse();
+    const all = this.readAllActions();
+    if (all.length === 0) return [];
+    return all.slice(-n).reverse();
   }
 
   getDailyActionCount(type: string) {
     const today = new Date().toISOString().slice(0, 10);
-    if (this.db) {
-      const stmt = this.db.prepare(`SELECT COUNT(*) as cnt FROM actions WHERE type = ? AND timestamp LIKE ?`);
-      const row = stmt.get(type, `${today}%`);
-      return row?.cnt || 0;
-    }
-    return this.inMemoryActions.filter((a) => a.type === type && a.timestamp.startsWith(today)).length;
+    const all = this.readAllActions();
+    return all.filter((a) => a.type === type && a.timestamp.startsWith(today)).length;
   }
 
   appendAudit(event: string, metadata: object) {
-    if (this.db) {
-      const stmt = this.db.prepare(`INSERT INTO audit_log (timestamp, event, metadata) VALUES (?, ?, ?)`);
-      stmt.run(new Date().toISOString(), event, JSON.stringify(metadata || {}));
-      return;
+    this.ensureFiles();
+    const entry = { timestamp: new Date().toISOString(), event, metadata };
+    try {
+      fs.appendFileSync(AUDIT_FILE, JSON.stringify(entry) + '\n', 'utf8');
+    } catch (e) {
+      // ignore failures
     }
-    this.inMemoryAudit.push({ timestamp: new Date().toISOString(), event, metadata: JSON.stringify(metadata || {}) });
   }
 }
 

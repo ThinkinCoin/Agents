@@ -1,8 +1,0 @@
-ignoredBuiltDependencies:
-  - better-sqlite3
-
-onlyBuiltDependencies:
-  - '@whiskeysockets/baileys'
-  - node-llama-cpp
-  - protobufjs
-  - sharp

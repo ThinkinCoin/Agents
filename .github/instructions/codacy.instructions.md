@@ -7,11 +7,13 @@
 Configuration for AI behavior when interacting with Codacy's MCP Server
 
 ## CRITICAL: After ANY successful `edit_file` or `reapply` operation
-- YOU MUST IMMEDIATELY run the `codacy_cli_analyze` tool from Codacy's MCP Server for each file that was edited, with:
+- YOU MUST IMMEDIATELY run the `codacy_cli_analyze` tool from Codacy's CLI  for each file that was edited, with:
  - `rootPath`: set to the workspace path
  - `file`: set to the path of the edited file
  - `tool`: leave empty or unset
 - If any issues are found in the new edits, propose and apply fixes for them.
+- If codacy cli is not installed, install it using the `codacy_cli_install` tool and then run the analysis.
+- dont run codacy on *.md or *.sol files, as they are not supported by Codacy CLI. Only run codacy on code files.
 - > NOTE: Failure to follow this rule is considered a critical error.
 
 ## When you tried to run the `codacy_cli_analyze` tool and the Codacy CLI is not installed

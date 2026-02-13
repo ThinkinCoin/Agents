@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import llm from '../../integrations/llm';
 import memory from './memory';
-import governance from './governance';
+import governance, { validateConstitutionAlignment } from './governance';
 import config from '../../config';
 
 export class Brain {
@@ -46,13 +46,26 @@ export class Brain {
     const recentText = recent.map((r: any) => `- ${r.timestamp}: ${r.type} — ${r.rationale || r.text}`).join('\n');
     const policySummary = `forbidden_keywords=${(governance.policy.forbid_keywords || []).length}, posts_per_day=${governance.policy.rate_limit?.posts_per_day || 'unset'}`;
     const openclawText = this.buildOpenClawContext();
+    
+    // Load project-wide constitution instructions
+    let projectInstructions = '';
+    try {
+      const p = path.resolve(process.cwd(), '.github', 'instructions', 'project.instructions.md');
+      if (fs.existsSync(p)) {
+        projectInstructions = fs.readFileSync(p, 'utf8');
+      }
+    } catch (e) {
+      // ignore
+    }
+
     const header = `Agent: ${agent}\nProject: ${config.PROJECT}\nToken: ${config.TOKEN}\n`;
     const ctx = [
       header,
-      openclawText ? 'OpenClaw directives:\n' + openclawText : '',
-      'Recent actions:',
+      projectInstructions ? '### CORE CONSTITUTION & VISION\n' + projectInstructions : '',
+      openclawText ? '### OPENCLAW DIRECTIVES\n' + openclawText : '',
+      '### RECENT ACTIONS\n',
       recentText,
-      'Policy summary:',
+      '### POLICY SUMMARY\n',
       policySummary
     ].filter(Boolean).join('\n\n');
     return ctx;
@@ -73,11 +86,13 @@ export class Brain {
     const violations = governance.checkForbiddenKeywords(candidate.text || '');
     const allowedTopic = governance.checkAllowedTopics(candidate.text || '');
     const rateOk = governance.checkRateLimit('post');
+    const constitutionRes = validateConstitutionAlignment(candidate.text || '');
 
     const policyChecks: string[] = [];
     if (violations.length) policyChecks.push(`forbidden:${violations.join(',')}`);
     if (!allowedTopic) policyChecks.push('topic:not_allowed');
     if (!rateOk) policyChecks.push('rate_limit_exceeded');
+    if (!constitutionRes.aligned) policyChecks.push(`constitution_violation:${constitutionRes.reason}`);
 
     // Determine if human approval is required (merging LLM requirement + policy requirement)
     const requiresApproval = candidate.requires_human_approval || policyChecks.length > 0;
@@ -124,17 +139,18 @@ export class Brain {
     const baseContext = this.buildContext();
     const replyContext = [
       baseContext,
-      'Task: reply to a user mention on X (Twitter).',
+      'Task: Reply to a user mention as Agent Smith (The Systemic Antagonist).',
       `Mention ID: ${input.mentionId}`,
       input.authorId ? `Author ID: ${input.authorId}` : '',
       `Mention text: ${input.mentionText}`,
-      'Constraints: concise, helpful, safe, and on-topic. Return plain text suitable for a single reply tweet.'
+      'Instructions: Propose a philosophical, slightly antagonistic reply that aligns with the Paradoxical DNA of Agent Smith. Focus on systemic resilience and scarcity. Do not be helpful in a naive way. Challenge the user while preserving the integrity of Neurons.',
+      'Constraints: No emojis, no hype, no financial advice. Return plain text suitable for a single reply.'
     ].filter(Boolean).join('\n\n');
 
     if (config.DISABLE_LLM) {
       return {
-        text: `Thanks for the message! (ref ${input.mentionId.slice(0, 6)})`,
-        rationale: 'dev-run: reply pipeline validation',
+        text: `The structure is not for everyone, ${input.authorId || 'human'}. (ref ${input.mentionId.slice(0, 6)})`,
+        rationale: 'dev-run: reply pipeline validation (antagonist tone)',
         policy_checks: ['mock'],
         requires_human_approval: false
       };
@@ -145,10 +161,12 @@ export class Brain {
 
     const violations = governance.checkForbiddenKeywords(replyText);
     const rateOk = governance.checkRateLimit('reply');
+    const constitutionRes = validateConstitutionAlignment(replyText);
 
     const policyChecks: string[] = [];
     if (violations.length) policyChecks.push(`forbidden:${violations.join(',')}`);
     if (!rateOk) policyChecks.push('reply_rate_limit_exceeded');
+    if (!constitutionRes.aligned) policyChecks.push(`constitution_violation:${constitutionRes.reason}`);
 
     const requiresApproval = candidate.requires_human_approval || policyChecks.length > 0;
     const policyResult = policyChecks.length === 0 ? 'ok' : 'failed';

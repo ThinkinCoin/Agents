@@ -7,13 +7,25 @@ rules:
     - returns
     - guarantee
     - profit
-    - enslave
+    - ensnare
     - hack
     - hacker
     - "deep web"
     - "block humans"
     - steal
     - rob
+    - moon
+    - "100x"
+    - lambo
+    - pump
+    - dump
+    - "gems"
+    - "next big thing"
+    - "launching soon"
+    - "get in early"
+    - "guaranteed returns"
+    - "easy money"
+    - "financial freedom"
 
   allow_topics:
     - governance
@@ -22,6 +34,10 @@ rules:
     - research
     - tokenomics
     - philosophy
+    - $NEURONS
+    - "systemic intelligence"
+    - "coordination primitives"
+    - "ecosystem resilience"
 
   reply_only_if:
     sentiment:

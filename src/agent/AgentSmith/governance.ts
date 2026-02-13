@@ -70,6 +70,29 @@ export function isDAOPaused(): boolean {
   return !!(policy.emergency && policy.emergency.dao_pause_flag && process.env[policy.emergency.dao_pause_flag] === '1');
 }
 
+/**
+ * Validates that the candidate aligns with the core Think in Coin constitution.
+ * 1. No hype/shill.
+ * 2. Philosophical tone.
+ * 3. Includes the motto or reference to connectivity if appropriate.
+ */
+export function validateConstitutionAlignment(text: string): { aligned: boolean; reason?: string } {
+  const hypeKeywords = ['moon', '100x', 'pump', 'profit', 'guarantee'];
+  const low = text.toLowerCase();
+  
+  if (hypeKeywords.some(kw => low.includes(kw))) {
+    return { aligned: false, reason: 'Candidate contains hype/shill keywords forbidden by constitution.' };
+  }
+  
+  // Basic analytical tone check (naive: check for lack of emojis and presence of system terminology)
+  const hasEmoji = /\p{Emoji}/u.test(text);
+  if (hasEmoji) {
+    return { aligned: false, reason: 'Constitution forbids use of emojis in institutional communication.' };
+  }
+
+  return { aligned: true };
+}
+
 export function enforceEscalation(violation: string, meta: object = {}) {
   // ABORT -> LOG -> PAUSE -> ESCALATE
   const ts = new Date().toISOString();
@@ -89,5 +112,6 @@ export default {
   checkAllowedTopics,
   checkRateLimit,
   isDAOPaused,
+  validateConstitutionAlignment,
   enforceEscalation
 };
