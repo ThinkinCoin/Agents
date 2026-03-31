@@ -6,6 +6,7 @@ import Scout from './scout';
 import memory from './memory';
 import governance from './governance';
 import config from '../../config';
+import scheduler from './scheduler';
 
 export class Agent {
   private brain: Brain;
@@ -53,7 +54,60 @@ export class Agent {
       }
 
       try {
-        // 1) Collect and respond to mentions first
+        // 0) Check and publish scheduled posts first
+        const readyPosts = scheduler.getReadyPosts();
+        if (readyPosts.length > 0) {
+          console.log(`Found ${readyPosts.length} scheduled post(s) ready for publishing.`);
+          for (const post of readyPosts) {
+            try {
+              console.log(`Publishing scheduled post: ${post.id} - ${post.title}`);
+              const result = await executor.publish({
+                title: post.title,
+                text: post.text
+              });
+
+              if (result.posted) {
+                console.log(`✓ Scheduled post published: ${post.id}`);
+                scheduler.markPublished(post.id);
+                memory.recordAction({
+                  timestamp: new Date().toISOString(),
+                  type: 'scheduled_post',
+                  text: post.text,
+                  rationale: `Moltbook scheduled publication: ${post.title}`,
+                  policy_result: 'ok',
+                  published: 1
+                });
+              } else if (result.verification) {
+                console.warn(`✗ Scheduled post requires verification: ${post.id}`);
+                memory.recordAction({
+                  timestamp: new Date().toISOString(),
+                  type: 'scheduled_post_verification',
+                  text: post.text,
+                  rationale: `Verification required for: ${post.title}`,
+                  policy_result: 'verification_required',
+                  published: 0
+                });
+              } else {
+                console.error(`✗ Scheduled post failed: ${post.id}`, result);
+                scheduler.markFailed(post.id, JSON.stringify(result));
+                memory.recordAction({
+                  timestamp: new Date().toISOString(),
+                  type: 'scheduled_post_error',
+                  text: post.text,
+                  rationale: `Failed to publish: ${post.title}`,
+                  policy_result: 'error',
+                  published: 0
+                });
+              }
+            } catch (e) {
+              console.error(`Error publishing scheduled post ${post.id}:`, e);
+              scheduler.markFailed(post.id, String(e));
+            }
+          }
+        }
+        scheduler.updateLastCheck();
+
+        // 1) Collect and respond to mentions
         const mentions = await scout.collectNewMentions(executor);
         for (const mention of mentions) {
           try {

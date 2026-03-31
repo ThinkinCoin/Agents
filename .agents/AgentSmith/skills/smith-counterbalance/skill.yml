@@ -1,0 +1,15 @@
+---
+name: smith-counterbalance
+description: Dynamic adversarial escalation protocol. Increase analytical pressure proportional to Morpheus strength, testing claims under escalating scrutiny for anti-fragility.
+version: 1.0.0
+display_name: "Smith Counterbalance"
+triggers:
+  - counterbalance Morpheus
+  - escalate pressure
+  - adversarial loop
+  - anti-fragility test
+  - verify claims
+  - failure mode detection
+  - quality assurance
+  - resilience testing
+---

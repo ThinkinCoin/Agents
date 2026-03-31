@@ -1,0 +1,15 @@
+---
+name: narrative-sabotage
+description: Stress-test narratives under adversarial scrutiny. Identify weak framing, exploitable rhetoric, overpromises, and reputational vulnerability vectors.
+version: 1.0.0
+display_name: "Narrative Sabotage"
+triggers:
+  - test narrative
+  - stress test message
+  - red team
+  - adversarial analysis
+  - vulnerability discovery
+  - rhetoric analysis
+  - anti-fragility test
+  - weak claims detection
+---
