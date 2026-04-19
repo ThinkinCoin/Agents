@@ -1,0 +1,30 @@
+{
+  "name": "event_manager",
+  "description": "Manage events and trade shows",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["create", "checklist", "status"]
+      },
+      "event_name": { "type": "string" },
+      "brand": {
+        "type": "string",
+        "enum": ["Peels", "Polisport", "Bieffe"]
+      },
+      "date": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "location": { "type": "string" },
+      "event_id": { "type": "string" },
+      "status": {
+        "type": "string",
+        "enum": ["planned", "active", "completed", "cancelled"]
+      }
+    },
+    "required": ["action"]
+  }
+}

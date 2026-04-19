@@ -1,0 +1,33 @@
+{
+  "name": "marketing_calendar",
+  "description": "Manage marketing calendar",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["create", "list", "update"]
+      },
+      "brand": {
+        "type": "string",
+        "enum": ["Peels", "Polisport", "Bieffe"]
+      },
+      "date": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "content_type": {
+        "type": "string",
+        "enum": ["post", "campanha", "evento"]
+      },
+      "description": { "type": "string" },
+      "item_id": { "type": "string" },
+      "status": {
+        "type": "string",
+        "enum": ["planned", "scheduled", "published", "cancelled"]
+      }
+    },
+    "required": ["action", "brand"]
+  }
+}

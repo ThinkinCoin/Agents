@@ -1,0 +1,17 @@
+{
+  "id": "starplast-ops",
+  "name": "Starplast Operations",
+  "description": "Operations plugin for communication, marketing and events",
+  "version": "1.0.0",
+  "skills": ["./tools"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "storage": {
+        "type": "string",
+        "enum": ["memory", "notion", "database"]
+      }
+    }
+  }
+}

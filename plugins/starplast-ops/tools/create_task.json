@@ -1,0 +1,30 @@
+{
+  "name": "create_task",
+  "description": "Create a task for Starplast communication team",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": { "type": "string" },
+      "brand": {
+        "type": "string",
+        "enum": ["Peels", "Polisport", "Bieffe"]
+      },
+      "area": {
+        "type": "string",
+        "enum": ["social", "eventos", "branding"]
+      },
+      "assigned_to": { "type": "string" },
+      "priority": {
+        "type": "string",
+        "enum": ["low", "medium", "high"]
+      },
+      "due_date": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "context": { "type": "string" }
+    },
+    "required": ["title", "brand", "area", "assigned_to", "priority", "due_date"]
+  }
+}
